@@ -1004,12 +1004,13 @@ function buildPredTable(fYears, fT, xV, yV, pois, nb, pPred, nPred, xMax, partX,
 // ──────────────────────────────────────────────────────────
 // STATS PANEL
 // ──────────────────────────────────────────────────────────
-function buildStats(pois, nb, bootCI, colors) {
+function buildStats(pois, nb, bootCI, colors, bootN) { 
   const pRate = (Math.exp(pois.beta)-1)*100;
   const nRate = (Math.exp(nb.beta)-1)*100;
   const pRateLo = (Math.exp(pois.beta - 1.96*Math.sqrt(pois.fish.vB))-1)*100;
   const pRateHi = (Math.exp(pois.beta + 1.96*Math.sqrt(pois.fish.vB))-1)*100;
   const f1 = v => v.toFixed(1)+'%';
+  const f2d = v => v.toFixed(2)+'%';
   const f2 = v => v.toFixed(2);
   const winner = pois.aic < nb.aic ? 'Poisson' : 'Neg. Binomial';
 
@@ -1018,7 +1019,7 @@ function buildStats(pois, nb, bootCI, colors) {
     { label:'NB AIC', value:f2(nb.aic), sub:`θ̂ = ${f2(nb.theta)} &nbsp;·&nbsp; ${winner==='Neg. Binomial'?'✓ Better fit':''}`, color:colors.nb },
     { label:'Poisson Growth Rate', value:f1(pRate), sub:`95% CI: ${f1(pRateLo)} – ${f1(pRateHi)}`, color:colors.pois },
     { label:'NB Growth Rate', value:f1(nRate),
-      sub: bootCI ? `Bootstrap 95% CI: ${f1(bootCI.lo*100)} – ${f1(bootCI.hi*100)}` : 'No bootstrap CI', color:colors.nb },
+      sub: bootCI ? `Bootstrap 95% CI: ${f2d(bootCI.lo*100)} – ${f2d(bootCI.hi*100)} (n=${bootN})` : 'No bootstrap CI', color:colors.nb },
   ];
 
   document.getElementById('statsRow').innerHTML = cards.map(c=>`
@@ -1079,7 +1080,7 @@ async function runAnalysis() {
     document.getElementById('loadingState').classList.remove('active');
     document.getElementById('resultsArea').classList.add('active');
 
-    buildStats(pois, nb, bootCI, colors);
+   buildStats(pois, nb, bootCI, colors, bootN); 
     await new Promise(r=>setTimeout(r,20));
     buildAllPlots(xV, yV, pois, nb, bootCI, partX, partY, colors, labels);
 
