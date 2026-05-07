@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Publication Trend Analyzer</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:   #0f172a;
+  --navy2:  #1e293b;
+  --navy3:  #334155;
+  --slate:  #64748b;
+  --border: #e2e8f0;
+  --bg:     #f8fafc;
+  --white:  #ffffff;
+  --amber:  #d97706;
+  --blue:   #0369a1;
+  --rose:   #be185d;
+  --emerald:#047857;
+  --text:   #0f172a;
+  --muted:  #64748b;
+  --radius: 10px;
+  --sw: 310px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--navy);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 1px 16px rgba(0,0,0,0.25);
+}
+header .brand { display:flex; align-items:center; gap:12px; }
+header h1 {
+  font-family: 'Crimson Pro', serif;
+  font-size: 1.35rem; font-weight: 700;
+  letter-spacing: 0.01em;
+}
+header p { font-size: 0.75rem; color: #94a3b8; margin-top:1px; }
+.header-badge {
+  display:flex; gap:8px;
+}
+.hbadge {
+  font-size: 0.7rem; padding: 3px 10px; border-radius:999px; font-weight:600;
+  background: rgba(255,255,255,0.1); color: #cbd5e1;
+}
+
+/* ── LAYOUT ── */
+.layout {
+  display: flex;
+  height: calc(100vh - 57px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sw);
+  min-width: var(--sw);
+  background: var(--navy2);
+  color: #e2e8f0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--navy3); border-radius:2px; }
+
+.sb-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.sb-section h3 {
+  font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: #64748b; margin-bottom: 10px;
+}
+
+.sb-label {
+  font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; display:block;
+}
+.form-group { margin-bottom: 10px; }
+
+.sb-input, .sb-textarea, .sb-select {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--navy);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.sb-input:focus, .sb-textarea:focus, .sb-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+.sb-textarea {
+  resize: vertical; min-height: 110px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem; line-height:1.5;
+}
+.sb-select option { background: var(--navy2); }
+
+.file-drop {
+  width: 100%;
+  padding: 10px;
+  border: 1.5px dashed rgba(255,255,255,0.15);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.75rem; color: #64748b;
+  cursor: pointer; transition: all 0.15s;
+  background: transparent;
+  display: block; margin-bottom: 10px;
+}
+.file-drop:hover { border-color: #3b82f6; color: #93c5fd; }
+#fileInput { display:none; }
+
+.hint { font-size: 0.7rem; color: #475569; margin-top:3px; line-height:1.4; }
+
+.color-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.color-item { display:flex; flex-direction:column; gap:4px; }
+.color-item label { font-size:0.7rem; color:#94a3b8; }
+.color-row2 { display:flex; align-items:center; gap:6px; }
+input[type="color"] {
+  width: 28px; height: 24px;
+  padding: 1px 2px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px; cursor: pointer;
+  background: transparent;
+}
+.color-hex {
+  flex:1; width:0;
+  background: var(--navy); border: 1px solid rgba(255,255,255,0.1);
+  border-radius:4px; padding: 3px 6px;
+  font-size:0.72rem; color:#e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.partial-row { display:flex; gap:8px; }
+.partial-row > div { flex:1; }
+
+.run-btn {
+  margin: 12px 16px;
+  width: calc(100% - 32px);
+  padding: 11px;
+  background: linear-gradient(135deg, #1d4ed8, #0369a1);
+  color: white; border: none; border-radius: 8px;
+  font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px rgba(29,78,216,0.35);
+}
+.run-btn:hover { transform:translateY(-1px); box-shadow: 0 6px 18px rgba(29,78,216,0.45); }
+.run-btn:disabled { background: var(--navy3); box-shadow:none; transform:none; cursor:not-allowed; }
+
+.sample-btn {
+  width: 100%; padding: 6px;
+  background: transparent; border: 1px solid rgba(255,255,255,0.12);
+  border-radius:5px; color:#94a3b8; font-size:0.75rem;
+  cursor:pointer; font-family:'DM Sans',sans-serif;
+  transition: all 0.15s;
+}
+.sample-btn:hover { background: rgba(255,255,255,0.06); color:#e2e8f0; }
+
+.err-box {
+  margin: 0 16px 12px;
+  padding: 8px 10px;
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px; color: #fca5a5; font-size: 0.78rem;
+  display:none;
+}
+.err-box.active { display:block; }
+.ok-box {
+  margin: 0 16px 12px;
+  padding: 8px 10px;
+  background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 6px; color: #6ee7b7; font-size: 0.78rem;
+  display:none;
+}
+.ok-box.active { display:block; }
+
+/* ── MAIN ── */
+.main {
+  flex: 1; overflow-y: auto;
+  padding: 20px; display:flex; flex-direction:column; gap:16px;
+}
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius:3px; }
+
+/* ── WELCOME ── */
+.welcome {
+  flex:1; display:flex; align-items:center; justify-content:center;
+}
+.welcome-card {
+  background: var(--white); border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 52px 48px; text-align:center;
+  max-width: 480px;
+  box-shadow: 0 4px 24px rgba(15,23,42,0.06);
+}
+.welcome-icon { font-size: 3.5rem; margin-bottom:16px; }
+.welcome-card h2 {
+  font-family: 'Crimson Pro', serif; font-size:1.8rem;
+  color: var(--navy); margin-bottom:10px;
+}
+.welcome-card p { color: var(--muted); font-size:0.875rem; line-height:1.7; }
+.welcome-actions { margin-top:24px; display:flex; gap:10px; justify-content:center; }
+.btn-primary {
+  padding: 10px 22px; background: var(--navy);
+  color:white; border:none; border-radius:8px; font-size:0.875rem;
+  font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif;
+  transition:all 0.15s;
+}
+.btn-primary:hover { background: var(--navy2); transform:translateY(-1px); }
+.btn-ghost {
+  padding:10px 22px; background:transparent;
+  border:1.5px solid var(--border); border-radius:8px;
+  font-size:0.875rem; color:var(--muted); cursor:pointer;
+  font-family:'DM Sans',sans-serif; transition:all 0.15s;
+}
+.btn-ghost:hover { border-color: var(--navy); color: var(--navy); }
+
+/* ── LOADING ── */
+.loading-state { display:none; }
+.loading-state.active { display:flex; align-items:center; justify-content:center; flex:1; }
+.spinner {
+  width:40px; height:40px; border:3px solid #e2e8f0;
+  border-top-color: var(--navy);
+  border-radius:50%; animation: spin 0.8s linear infinite;
+  margin-right:14px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── RESULTS ── */
+.results { display:none; flex-direction:column; gap:16px; animation: fadeIn 0.4s; }
+.results.active { display:flex; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+/* ── STAT CARDS ── */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat-card {
+  background:var(--white); border-radius:10px;
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  border-top: 3px solid transparent;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.04);
+  transition: box-shadow 0.15s;
+}
+.stat-card:hover { box-shadow: 0 4px 12px rgba(15,23,42,0.08); }
+.stat-label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:500; }
+.stat-value { font-size:1.45rem; font-weight:700; margin-top:4px; font-family:'Crimson Pro',serif; }
+.stat-sub { font-size:0.7rem; color:var(--muted); margin-top:3px; font-family:'JetBrains Mono',monospace; }
+
+/* ── TABS ── */
+.tabs-row {
+  display:flex; gap:6px;
+  background: var(--white); border:1px solid var(--border);
+  border-radius: 10px; padding: 5px;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.04);
+}
+.tab-btn {
+  flex:1; padding:9px 12px; text-align:center;
+  border-radius:7px; border:none; background:transparent;
+  font-size:0.82rem; font-weight:500; color:var(--muted);
+  cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s;
+}
+.tab-btn:hover:not(.active) { background:#f1f5f9; color:var(--text); }
+.tab-btn.active { background:var(--navy); color:white; box-shadow:0 2px 8px rgba(15,23,42,0.2); }
+
+.plot-pane { display:none; }
+.plot-pane.active { display:block; }
+
+.plot-card {
+  background: var(--white); border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.04);
+  min-height: 430px;
+}
+
+/* ── INLINE FORM GRID ── */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* ── FOOTER NOTE ── */
+.foot-note {
+  text-align:center; font-size:0.7rem; color:var(--muted);
+  padding-bottom:8px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div>
+      <h1>📈 Publication Trend Analyzer</h1>
+      <p>Poisson &amp; Negative Binomial GLM · Bibliometric Growth Analysis</p>
+    </div>
+  </div>
+  <div class="header-badge">
+    <span class="hbadge">Poisson</span>
+    <span class="hbadge">Neg. Binomial</span>
+    <span class="hbadge">Bootstrap CI</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar">
+
+    <!-- Data -->
+    <div class="sb-section">
+      <h3>① Data Input</h3>
+      <label class="file-drop" for="fileInput">⬆ Upload Excel (.xlsx) or CSV file</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+
+      <div class="form-group">
+        <label class="sb-label">Or paste data (tab / comma separated)</label>
+        <textarea class="sb-textarea" id="pasteArea"
+          placeholder="Year&#9;Articles&#10;1996&#9;1&#10;1997&#9;0&#10;...&#10;&#10;First row can be a header.&#10;Column 1 = X, Column 2 = Y"></textarea>
+        <div class="hint">First column → X axis &nbsp;·&nbsp; Second column → Y axis</div>
+      </div>
+      <button class="sample-btn" onclick="loadSample()">Load built-in sample data</button>
+    </div>
+
+    <!-- Partial year -->
+    <div class="sb-section">
+      <h3>② Partial Year (optional)</h3>
+      <div class="hint" style="margin-bottom:8px">Enter an incomplete data point (e.g. current year, Jan–Apr only). It will be displayed in a distinct colour.</div>
+      <div class="partial-row">
+        <div>
+          <label class="sb-label">Year</label>
+          <input class="sb-input" type="number" id="partialYear" placeholder="e.g. 2026" step="1">
+        </div>
+        <div>
+          <label class="sb-label">Count</label>
+          <input class="sb-input" type="number" id="partialCount" placeholder="e.g. 12" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- Labels -->
+    <div class="sb-section">
+      <h3>③ Chart Labels</h3>
+      <div class="form-group">
+        <label class="sb-label">Plot Title</label>
+        <input class="sb-input" id="plotTitle" value="Annual Publication Trend" type="text">
+      </div>
+      <div class="form-group">
+        <label class="sb-label">X-axis Label</label>
+        <input class="sb-input" id="xLabel" value="Year of publication" type="text">
+      </div>
+      <div class="form-group">
+        <label class="sb-label">Y-axis Label</label>
+        <input class="sb-input" id="yLabel" value="Number of publications" type="text">
+      </div>
+    </div>
+
+    <!-- Colors -->
+    <div class="sb-section">
+      <h3>④ Colors</h3>
+      <div class="color-grid">
+        <div class="color-item">
+          <label>Observed Bars</label>
+          <div class="color-row2">
+            <input type="color" id="cObs" value="#374151">
+            <input type="text" class="color-hex" id="cObsHex" value="#374151" maxlength="7">
+          </div>
+        </div>
+        <div class="color-item">
+          <label>Poisson Model</label>
+          <div class="color-row2">
+            <input type="color" id="cPois" value="#d97706">
+            <input type="text" class="color-hex" id="cPoisHex" value="#d97706" maxlength="7">
+          </div>
+        </div>
+        <div class="color-item">
+          <label>Neg. Binomial</label>
+          <div class="color-row2">
+            <input type="color" id="cNB" value="#0369a1">
+            <input type="text" class="color-hex" id="cNBHex" value="#0369a1" maxlength="7">
+          </div>
+        </div>
+        <div class="color-item">
+          <label>Partial Year</label>
+          <div class="color-row2">
+            <input type="color" id="cPart" value="#be185d">
+            <input type="text" class="color-hex" id="cPartHex" value="#be185d" maxlength="7">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="sb-section">
+      <h3>⑤ Forecast &amp; Options</h3>
+      <div class="two-col">
+        <div>
+          <label class="sb-label">Forecast until</label>
+          <input class="sb-input" type="number" id="forecastEnd" value="2030" step="1">
+        </div>
+        <div>
+          <label class="sb-label">Bootstrap n</label>
+          <select class="sb-select" id="bootN">
+            <option value="200">200 · fast</option>
+            <option value="500" selected>500 · standard</option>
+            <option value="1000">1000 · precise</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button class="run-btn" id="runBtn" onclick="runAnalysis()">▶ Run Analysis</button>
+    <div class="err-box" id="errBox"></div>
+    <div class="ok-box" id="okBox"></div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+  <main class="main" id="mainArea">
+
+    <!-- Welcome -->
+    <div class="welcome" id="welcomeState">
+      <div class="welcome-card">
+        <div class="welcome-icon">📊</div>
+        <h2>Ready to Analyze</h2>
+        <p>Paste two-column data (X, Y) or upload an Excel / CSV file, then click <strong>Run Analysis</strong>.
+           The tool fits Poisson and Negative Binomial GLMs, computes growth rates with confidence intervals,
+           and generates three publication-quality plots.</p>
+        <div class="welcome-actions">
+          <button class="btn-primary" onclick="loadSample(); runAnalysis()">Try Sample Data</button>
+          <button class="btn-ghost" onclick="showHelp()">How it works</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <span style="color:var(--muted);font-size:0.9rem">Fitting models &amp; running bootstrap…</span>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="resultsArea">
+
+      <!-- Stat cards -->
+      <div class="stats-row" id="statsRow"></div>
+
+      <!-- Tabs -->
+      <div class="tabs-row">
+        <button class="tab-btn active" onclick="switchTab('combined')">🔀 Combined</button>
+        <button class="tab-btn" onclick="switchTab('poisson')">Poisson Only</button>
+        <button class="tab-btn" onclick="switchTab('nb')">Neg. Binomial Only</button>
+      </div>
+
+      <div class="plot-pane active" id="pane-combined">
+        <div class="plot-card" id="plot-combined"></div>
+      </div>
+      <div class="plot-pane" id="pane-poisson">
+        <div class="plot-card" id="plot-poisson"></div>
+      </div>
+      <div class="plot-pane" id="pane-nb">
+        <div class="plot-card" id="plot-nb"></div>
+      </div>
+
+      <p class="foot-note">
+        Poisson: 2 params · AIC = −2ℓ + 4 &nbsp;|&nbsp;
+        Neg. Binomial: 3 params (includes θ dispersion) · AIC = −2ℓ + 6 &nbsp;|&nbsp;
+        Growth rate = exp(β) − 1 per X-unit &nbsp;|&nbsp;
+        Shaded bands = 95 % CI on fitted mean
+      </p>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ═════════════════════════════ JAVASCRIPT ════════════════════════════ -->
+<script>
+// ──────────────────────────────────────────────────────────
+// SPECIAL FUNCTIONS
+// ──────────────────────────────────────────────────────────
+function lgamma(x) {
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+  x -= 1;
+  const c = [0.99999999999980993,676.5203681218851,-1259.1392167224028,
+    771.32342877765313,-176.61502916214059,12.507343278686905,
+    -0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  let a = c[0];
+  const t = x + 7.5;
+  for (let i = 1; i < 9; i++) a += c[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+
+function digamma(x) {
+  let r = 0;
+  while (x < 6) { r -= 1 / x; x++; }
+  const ix = 1 / x, ix2 = ix * ix;
+  return r + Math.log(x) - 0.5 * ix - ix2 * (1/12 - ix2 * (1/120 - ix2 / 252));
+}
+
+function trigamma(x) {
+  let r = 0;
+  while (x < 6) { r += 1 / (x * x); x++; }
+  const ix = 1 / x, ix2 = ix * ix;
+  return r + ix + 0.5 * ix2 + ix2 * ix * (1/6 - ix2 * (1/30 - ix2 / 42));
+}
+
+// ──────────────────────────────────────────────────────────
+// WLS UTILITIES
+// ──────────────────────────────────────────────────────────
+function solveWLS(t, W, z) {
+  let s00=0, s10=0, s11=0, s0z=0, s1z=0;
+  for (let i = 0; i < t.length; i++) {
+    s00 += W[i]; s10 += W[i]*t[i]; s11 += W[i]*t[i]*t[i];
+    s0z += W[i]*z[i]; s1z += W[i]*t[i]*z[i];
+  }
+  const det = s00*s11 - s10*s10;
+  if (Math.abs(det) < 1e-14) return [Math.log(0.1), 0];
+  return [(s0z*s11 - s1z*s10)/det, (s00*s1z - s10*s0z)/det];
+}
+
+function fisherInv(t, W) {
+  let s00=0, s10=0, s11=0;
+  for (let i = 0; i < t.length; i++) { s00+=W[i]; s10+=W[i]*t[i]; s11+=W[i]*t[i]*t[i]; }
+  const det = s00*s11 - s10*s10;
+  if (Math.abs(det) < 1e-14) return { vA:1, cAB:0, vB:1 };
+  return { vA: s11/det, cAB: -s10/det, vB: s00/det };
+}
+
+function predictWithCI(alpha, beta, fish, tArr) {
+  const { vA, cAB, vB } = fish;
+  return tArr.map(ti => {
+    const eta = alpha + beta * ti;
+    const se  = Math.sqrt(Math.max(vA + 2*ti*cAB + ti*ti*vB, 0));
+    return { fit: Math.exp(eta), lo: Math.exp(eta - 1.96*se), hi: Math.exp(eta + 1.96*se) };
+  });
+}
+
+// ──────────────────────────────────────────────────────────
+// POISSON GLM (IRLS)
+// ──────────────────────────────────────────────────────────
+function poissonGLM(t, y) {
+  const n = y.length;
+  const ybar = y.reduce((a,b)=>a+b,0)/n;
+  let alpha = Math.log(Math.max(ybar, 0.01)), beta = 0.05;
+
+  for (let iter = 0; iter < 400; iter++) {
+    const mu = t.map(ti => Math.exp(Math.min(alpha + beta*ti, 20)));
+    const z  = t.map((ti,i) => (alpha+beta*ti) + (y[i]-mu[i]) / Math.max(mu[i],1e-9));
+    const [aN, bN] = solveWLS(t, mu, z);
+    const d = Math.abs(aN-alpha) + Math.abs(bN-beta);
+    alpha = aN; beta = bN;
+    if (d < 1e-11) break;
+  }
+
+  const mu = t.map(ti => Math.exp(alpha + beta*ti));
+  const fish = fisherInv(t, mu);
+  let ll = 0;
+  for (let i=0;i<n;i++) ll += y[i]*Math.log(Math.max(mu[i],1e-300)) - mu[i] - lgamma(y[i]+1);
+  return { alpha, beta, mu, fish, ll, aic: -2*ll + 4 };
+}
+
+// ──────────────────────────────────────────────────────────
+// NEGATIVE BINOMIAL GLM (IRLS + NR for θ)
+// ──────────────────────────────────────────────────────────
+function nbGLM(t, y) {
+  const n = y.length;
+  let { alpha, beta, mu } = poissonGLM(t, y);
+
+  // Initialise θ from method of moments
+  const ybar = y.reduce((a,b)=>a+b,0)/n;
+  const s2   = y.reduce((s,yi)=>s+(yi-ybar)**2,0)/Math.max(n-1,1);
+  let theta  = Math.min(Math.max(ybar*ybar/Math.max(s2-ybar,0.01),0.1),1000);
+
+  let prevLL = -Infinity;
+
+  for (let outer = 0; outer < 60; outer++) {
+    const aOld=alpha, bOld=beta, thOld=theta;
+
+    // IRLS for β
+    for (let inner = 0; inner < 150; inner++) {
+      const eta = t.map(ti => alpha + beta*ti);
+      mu = eta.map(e => Math.exp(Math.min(e, 20)));
+      const W = mu.map(m => theta*m/(theta+m));
+      const z = eta.map((e,i) => e + (y[i]-mu[i])/Math.max(mu[i],1e-9));
+      const [aN,bN] = solveWLS(t, W, z);
+      const d = Math.abs(aN-alpha)+Math.abs(bN-beta);
+      alpha=aN; beta=bN;
+      if (d < 1e-11) break;
+    }
+
+    // NR for θ
+    mu = t.map(ti => Math.exp(alpha+beta*ti));
+    for (let k = 0; k < 60; k++) {
+      let score=0, info=0;
+      for (let i=0;i<n;i++) {
+        const yi=y[i],mi=mu[i],th=theta;
+        score += digamma(yi+th)-digamma(th)+Math.log(th/(th+mi))+(mi-yi)/(th+mi);
+        info  += trigamma(yi+th)-trigamma(th)+1/th-1/(th+mi)+(yi-mi)/(th+mi)**2;
+      }
+      if (Math.abs(score)<1e-10) break;
+      if (info >= 0) info = -0.001*n;
+      let tN = theta - score/info;
+      tN = Math.max(tN, 1e-5);
+      const d = Math.abs(tN-theta); theta=tN;
+      if (d < 1e-9) break;
+    }
+    theta = Math.max(theta, 1e-5);
+
+    // Log-likelihood check
+    let ll=0;
+    for (let i=0;i<n;i++) {
+      const yi=y[i],mi=mu[i];
+      ll += lgamma(yi+theta)-lgamma(theta)-lgamma(yi+1)
+           +yi*Math.log(Math.max(mi/(mi+theta),1e-300))
+           +theta*Math.log(Math.max(theta/(theta+mi),1e-300));
+    }
+    if (Math.abs(ll-prevLL)<1e-9) break;
+    prevLL=ll;
+  }
+
+  mu = t.map(ti => Math.exp(alpha+beta*ti));
+  const W    = mu.map(m=>theta*m/(theta+m));
+  const fish = fisherInv(t, W);
+  let ll=0;
+  for (let i=0;i<n;i++) {
+    const yi=y[i],mi=mu[i];
+    ll += lgamma(yi+theta)-lgamma(theta)-lgamma(yi+1)
+         +yi*Math.log(Math.max(mi/(mi+theta),1e-300))
+         +theta*Math.log(Math.max(theta/(theta+mi),1e-300));
+  }
+  return { alpha, beta, theta, mu, fish, ll, aic: -2*ll+6 };
+}
+
+// ──────────────────────────────────────────────────────────
+// BOOTSTRAP CI FOR NB ANNUAL GROWTH RATE
+// ──────────────────────────────────────────────────────────
+function bootstrapNB(t, y, nBoot) {
+  const n = y.length, rates = [];
+  for (let b = 0; b < nBoot; b++) {
+    const idx = Array.from({length:n},()=>Math.floor(Math.random()*n));
+    try {
+      const res = nbGLM(idx.map(i=>t[i]), idx.map(i=>y[i]));
+      const r = Math.exp(res.beta)-1;
+      if (isFinite(r) && r>-0.99 && r<50) rates.push(r);
+    } catch(_) {}
+  }
+  rates.sort((a,b)=>a-b);
+  const m = rates.length;
+  return { lo: rates[Math.floor(0.025*m)]??0, hi: rates[Math.floor(0.975*m)]??rates[m-1]??1 };
+}
+
+// ──────────────────────────────────────────────────────────
+// DATA PARSING
+// ──────────────────────────────────────────────────────────
+function parseText(raw) {
+  const lines = raw.trim().split(/\r?\n/).filter(l=>l.trim());
+  if (lines.length < 2) throw new Error('Need at least 2 rows of data');
+
+  const split = l => l.trim().split(/[\t,;]+/).map(v=>v.replace(/^["']|["']$/g,'').trim());
+  const rows  = lines.map(split);
+
+  const firstNum0 = parseFloat(rows[0][0]);
+  const hasHeader = isNaN(firstNum0) || isNaN(parseFloat(rows[0][1]));
+  const header = hasHeader ? rows[0] : ['X','Y'];
+  const dataRows = hasHeader ? rows.slice(1) : rows;
+
+  const xV=[], yV=[];
+  for (const r of dataRows) {
+    const x=parseFloat(r[0]), y=parseFloat(r[1]);
+    if (!isNaN(x)&&!isNaN(y)) { xV.push(x); yV.push(y); }
+  }
+  if (xV.length < 3) throw new Error('Need at least 3 valid numeric rows');
+
+  return { xV, yV, xLabel:header[0]||'X', yLabel:header[1]||'Y' };
+}
+
+// ──────────────────────────────────────────────────────────
+// HEX COLOR UTILITIES
+// ──────────────────────────────────────────────────────────
+function hexRgba(hex, a) {
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// Sync colour picker ↔ text box
+['Obs','Pois','NB','Part'].forEach(k=>{
+  const picker = document.getElementById('c'+k);
+  const hexBox = document.getElementById('c'+k+'Hex');
+  picker.addEventListener('input',()=>{ hexBox.value=picker.value; });
+  hexBox.addEventListener('input',()=>{
+    if (/^#[0-9a-fA-F]{6}$/.test(hexBox.value)) picker.value=hexBox.value;
+  });
+});
+
+function getColors() {
+  return {
+    obs:  document.getElementById('cObs').value,
+    pois: document.getElementById('cPois').value,
+    nb:   document.getElementById('cNB').value,
+    part: document.getElementById('cPart').value,
+  };
+}
+
+// ──────────────────────────────────────────────────────────
+// SAMPLE DATA
+// ──────────────────────────────────────────────────────────
+function loadSample() {
+  document.getElementById('pasteArea').value =
+`Year\tArticles
+1996\t1
+1997\t0
+1998\t1
+1999\t0
+2000\t0
+2001\t0
+2002\t0
+2003\t1
+2004\t0
+2005\t0
+2006\t0
+2007\t0
+2008\t1
+2009\t1
+2010\t1
+2011\t2
+2012\t5
+2013\t4
+2014\t3
+2015\t11
+2016\t11
+2017\t7
+2018\t6
+2019\t16
+2020\t28
+2021\t22
+2022\t21
+2023\t13
+2024\t39
+2025\t51`;
+  document.getElementById('partialYear').value = '2026';
+  document.getElementById('partialCount').value = '12';
+}
+
+// ──────────────────────────────────────────────────────────
+// TABS
+// ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', ['combined','poisson','nb'][i]===name);
+  });
+  ['combined','poisson','nb'].forEach(id=>{
+    document.getElementById('pane-'+id).classList.toggle('active', id===name);
+    if (id===name) {
+      setTimeout(()=>{ try{Plotly.Plots.resize(document.getElementById('plot-'+id))}catch(_){} },60);
+    }
+  });
+}
+
+// ──────────────────────────────────────────────────────────
+// PLOTTING
+// ──────────────────────────────────────────────────────────
+const PLOTLY_CONFIG = { responsive:true, displayModeBar:true, toImageButtonOptions:{format:'svg',filename:'trend_plot'} };
+
+function baseLayout(title, xlab, ylab, shapes=[], annotations=[]) {
+  return {
+    title: { text: `<b>${title}</b>`, font:{size:14,color:'#0f172a',family:"'Crimson Pro',serif"}, x:0.04, xanchor:'left' },
+    xaxis: { title:{text:xlab,font:{size:11,color:'#475569'}}, gridcolor:'#f1f5f9', linecolor:'#e2e8f0', tickfont:{size:10,color:'#64748b'}, zeroline:false },
+    yaxis: { title:{text:ylab,font:{size:11,color:'#475569'}}, gridcolor:'#f1f5f9', linecolor:'#e2e8f0', tickfont:{size:10,color:'#64748b'}, rangemode:'tozero', zeroline:false },
+    plot_bgcolor:'#ffffff', paper_bgcolor:'#ffffff',
+    margin: {l:60,r:20,t:52,b:60},
+    legend: {orientation:'h',yanchor:'bottom',y:1.04,xanchor:'right',x:1,font:{size:10},bgcolor:'rgba(255,255,255,0.85)',bordercolor:'#e2e8f0',borderwidth:1},
+    hovermode:'x unified',
+    font: {family:"'DM Sans',sans-serif",size:11},
+    shapes, annotations,
+    bargap:0.15
+  };
+}
+
+function buildAllPlots(xV, yV, pois, nb, bootCI, partX, partY, colors, labels) {
+  const xMin = Math.min(...xV), xMax = Math.max(...xV);
+  const forecastEnd = parseInt(document.getElementById('forecastEnd').value)||xMax+5;
+  const fYears=[]; for(let x=xMin;x<=forecastEnd;x++) fYears.push(x);
+  const fT = fYears.map(x=>x-xMin);
+  const histMask = fYears.map(y=>y<=xMax);
+
+  const pPred = predictWithCI(pois.alpha, pois.beta, pois.fish, fT);
+  const nPred = predictWithCI(nb.alpha, nb.beta, nb.fish, fT);
+
+  const hasPartial = partX!==null && partY!==null;
+  const { obs:cObs, pois:cPois, nb:cNB, part:cPart } = colors;
+  const { title, xlab, ylab } = labels;
+
+  // Forecast shading
+  const fcShape = forecastEnd>xMax ? [{
+    type:'rect',xref:'x',yref:'paper',
+    x0:xMax+0.5,x1:forecastEnd+0.5,y0:0,y1:1,
+    fillcolor:'#f8fafc',opacity:1,line:{width:0},layer:'below'
+  }] : [];
+  const fcAnnot = forecastEnd>xMax ? [{
+    x:(xMax+forecastEnd)/2+0.5,y:0.97,xref:'x',yref:'paper',
+    text:'Forecast',showarrow:false,font:{color:'#94a3b8',size:11}
+  }] : [];
+
+  // Max value annotation
+  const maxY = Math.max(...yV), maxX = xV[yV.indexOf(maxY)];
+  const maxAnnot = [{ x:maxX, y:maxY+maxY*0.05, text:`<b>${maxY}</b>`, showarrow:false, font:{size:11,color:cObs} }];
+
+  function buildTraces(showPois, showNB) {
+    const traces = [];
+
+    // Observed bars
+    traces.push({
+      type:'bar', x:xV, y:yV, name:'Observed',
+      marker:{color:cObs, opacity:0.65},
+      width:0.6, hovertemplate:'%{x}: <b>%{y}</b><extra>Observed</extra>'
+    });
+
+    // Partial bar
+    if (hasPartial) {
+      traces.push({
+        type:'bar', x:[partX], y:[partY], name:`${partX} (partial)`,
+        marker:{color:cPart, opacity:0.9}, width:0.6,
+        hovertemplate:`${partX}: <b>${partY}</b> (partial)<extra></extra>`
+      });
+    }
+
+    // Helper to add model CI + line
+    function addModel(name, color, dash, pred) {
+      const xH = fYears.filter((_,i)=>histMask[i]);
+      const xF = fYears.filter((_,i)=>!histMask[i]);
+      const pH = pred.filter((_,i)=>histMask[i]);
+      const pF = pred.filter((_,i)=>!histMask[i]);
+
+      // CI ribbon (entire range)
+      traces.push({ type:'scatter',mode:'lines',x:fYears,y:pred.map(p=>p.hi),
+        line:{width:0},showlegend:false,hoverinfo:'skip',name:'_hi_'+name });
+      traces.push({ type:'scatter',mode:'lines',x:fYears,y:pred.map(p=>p.lo),
+        fill:'tonexty',fillcolor:hexRgba(color,0.13),
+        line:{width:0},showlegend:false,hoverinfo:'skip',name:'_lo_'+name });
+
+      // Historical solid line
+      if (xH.length) traces.push({
+        type:'scatter',mode:'lines',x:xH,y:pH.map(p=>p.fit),
+        name, line:{color,dash,width:2.5},
+        hovertemplate:`${name}: %{y:.1f}<extra></extra>`
+      });
+      // Forecast line
+      if (xF.length) traces.push({
+        type:'scatter',mode:'lines',x:xF,y:pF.map(p=>p.fit),
+        name,line:{color,dash,width:2},showlegend:false,
+        hovertemplate:`${name} (fc): %{y:.1f}<extra></extra>`
+      });
+    }
+
+    if (showPois) addModel('Poisson', cPois, 'dash', pPred);
+    if (showNB)   addModel('Neg. Binomial', cNB, 'solid', nPred);
+
+    return traces;
+  }
+
+  const shapes = [...fcShape];
+  const annots = [...fcAnnot, ...maxAnnot];
+
+  Plotly.newPlot('plot-combined', buildTraces(true,true),
+    baseLayout(`${title} — Combined Models`, xlab, ylab, shapes, annots), PLOTLY_CONFIG);
+  Plotly.newPlot('plot-poisson', buildTraces(true,false),
+    baseLayout(`${title} — Poisson Model`, xlab, ylab, shapes, annots), PLOTLY_CONFIG);
+  Plotly.newPlot('plot-nb', buildTraces(false,true),
+    baseLayout(`${title} — Negative Binomial Model`, xlab, ylab, shapes, annots), PLOTLY_CONFIG);
+}
+
+// ──────────────────────────────────────────────────────────
+// STATS PANEL
+// ──────────────────────────────────────────────────────────
+function buildStats(pois, nb, bootCI, colors) {
+  const pRate = (Math.exp(pois.beta)-1)*100;
+  const nRate = (Math.exp(nb.beta)-1)*100;
+  const pRateLo = (Math.exp(pois.beta - 1.96*Math.sqrt(pois.fish.vB))-1)*100;
+  const pRateHi = (Math.exp(pois.beta + 1.96*Math.sqrt(pois.fish.vB))-1)*100;
+  const f1 = v => v.toFixed(1)+'%';
+  const f2 = v => v.toFixed(2);
+  const winner = pois.aic < nb.aic ? 'Poisson' : 'Neg. Binomial';
+
+  const cards = [
+    { label:'Poisson AIC', value:f2(pois.aic), sub:`${winner==='Poisson'?'✓ Better fit':''}`, color:colors.pois },
+    { label:'NB AIC', value:f2(nb.aic), sub:`θ̂ = ${f2(nb.theta)} &nbsp;·&nbsp; ${winner==='Neg. Binomial'?'✓ Better fit':''}`, color:colors.nb },
+    { label:'Poisson Growth Rate', value:f1(pRate), sub:`95% CI: ${f1(pRateLo)} – ${f1(pRateHi)}`, color:colors.pois },
+    { label:'NB Growth Rate', value:f1(nRate),
+      sub: bootCI ? `Bootstrap 95% CI: ${f1(bootCI.lo*100)} – ${f1(bootCI.hi*100)}` : 'No bootstrap CI', color:colors.nb },
+  ];
+
+  document.getElementById('statsRow').innerHTML = cards.map(c=>`
+    <div class="stat-card" style="border-top-color:${c.color}">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-value" style="color:${c.color}">${c.value}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ──────────────────────────────────────────────────────────
+// MAIN RUNNER
+// ──────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const errBox = document.getElementById('errBox');
+  const runBtn = document.getElementById('runBtn');
+  errBox.classList.remove('active');
+
+  // Parse data
+  let parsed;
+  try {
+    const text = document.getElementById('pasteArea').value.trim();
+    if (!text) throw new Error('Please enter data in the text area or upload a file.');
+    parsed = parseText(text);
+  } catch(e) {
+    errBox.textContent = '⚠ ' + e.message;
+    errBox.classList.add('active');
+    return;
+  }
+
+  const { xV, yV, xLabel: autoXLabel, yLabel: autoYLabel } = parsed;
+  const xMin = Math.min(...xV);
+  const t    = xV.map(x=>x-xMin);
+
+  const partX = parseFloat(document.getElementById('partialYear').value)||null;
+  const partY = parseFloat(document.getElementById('partialCount').value)||null;
+
+  const colors = getColors();
+  const labels = {
+    title: document.getElementById('plotTitle').value||'Publication Trend',
+    xlab:  document.getElementById('xLabel').value||autoXLabel,
+    ylab:  document.getElementById('yLabel').value||autoYLabel,
+  };
+
+  // Show loading
+  document.getElementById('welcomeState').style.display = 'none';
+  document.getElementById('resultsArea').classList.remove('active');
+  document.getElementById('loadingState').classList.add('active');
+  runBtn.disabled = true;
+  await new Promise(r=>setTimeout(r,30));
+
+  try {
+    const pois = poissonGLM(t, yV);
+    const nb   = nbGLM(t, yV);
+
+    await new Promise(r=>setTimeout(r,10));
+    const bootN   = parseInt(document.getElementById('bootN').value)||500;
+    const bootCI  = bootstrapNB(t, yV, bootN);
+
+    // Show results
+    document.getElementById('loadingState').classList.remove('active');
+    document.getElementById('resultsArea').classList.add('active');
+
+    buildStats(pois, nb, bootCI, colors);
+    await new Promise(r=>setTimeout(r,20));
+    buildAllPlots(xV, yV, pois, nb, bootCI, partX, partY, colors, labels);
+
+  } catch(e) {
+    document.getElementById('loadingState').classList.remove('active');
+    document.getElementById('welcomeState').style.display = 'flex';
+    errBox.textContent = '⚠ Analysis error: ' + e.message;
+    errBox.classList.add('active');
+    console.error(e);
+  }
+  runBtn.disabled = false;
+}
+
+// ──────────────────────────────────────────────────────────
+// FILE UPLOAD
+// ──────────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if (!file) return;
+  const errBox=document.getElementById('errBox'), okBox=document.getElementById('okBox');
+  errBox.classList.remove('active'); okBox.classList.remove('active');
+  try {
+    let parsed;
+    if (file.name.match(/\.(csv|tsv|txt)$/i)) {
+      parsed = parseText(await file.text());
+    } else {
+      parsed = await new Promise((res,rej)=>{
+        const reader = new FileReader();
+        reader.onload = ev=>{
+          try {
+            const wb = XLSX.read(ev.target.result,{type:'array'});
+            const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+            res(parseText(csv));
+          } catch(err){ rej(err); }
+        };
+        reader.onerror=()=>rej(new Error('File read failed'));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    // Fill textarea
+    let txt = parsed.xLabel+'\t'+parsed.yLabel+'\n';
+    txt += parsed.xV.map((x,i)=>`${x}\t${parsed.yV[i]}`).join('\n');
+    document.getElementById('pasteArea').value = txt;
+    if (!document.getElementById('xLabel').value) document.getElementById('xLabel').value=parsed.xLabel;
+    if (!document.getElementById('yLabel').value) document.getElementById('yLabel').value=parsed.yLabel;
+    okBox.textContent = `✓ Loaded ${parsed.xV.length} rows from "${file.name}"`;
+    okBox.classList.add('active');
+    setTimeout(()=>okBox.classList.remove('active'),3500);
+  } catch(err) {
+    errBox.textContent='⚠ '+err.message; errBox.classList.add('active');
+  }
+  e.target.value='';
+});
+
+// ──────────────────────────────────────────────────────────
+// HELP MODAL (inline)
+// ──────────────────────────────────────────────────────────
+function showHelp() {
+  alert([
+    'HOW IT WORKS',
+    '',
+    '1. Provide two-column data: X (e.g. Year) and Y (e.g. article count).',
+    '2. The tool fits two count-data regression models:',
+    '   • Poisson GLM — assumes variance = mean',
+    '   • Negative Binomial GLM — adds dispersion parameter θ',
+    '      (better for overdispersed data, i.e. variance > mean)',
+    '',
+    '3. Annual growth rate = exp(β) − 1',
+    '   where β is the slope of log(μ) on X.',
+    '',
+    '4. AIC (Akaike Information Criterion):',
+    '   Lower AIC = better model fit.',
+    '',
+    '5. Confidence bands use the delta method on the linear predictor.',
+    '',
+    '6. Bootstrap CI for the NB growth rate resamples',
+    '   observation rows with replacement (nBoot times).'
+  ].join('\n'));
+}
+
+// Default forecast end
+document.getElementById('forecastEnd').value = new Date().getFullYear() + 5;
+</script>
+</body>
+</html>
