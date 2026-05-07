@@ -59,6 +59,23 @@ header p { font-size: 0.75rem; color: #94a3b8; margin-top:1px; }
   font-size: 0.7rem; padding: 3px 10px; border-radius:999px; font-weight:600;
   background: rgba(255,255,255,0.1); color: #cbd5e1;
 }
+/* ── footnote ── */
+.contact-badge {
+  position: fixed;
+  bottom: 14px;
+  right: 18px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  z-index: 50;
+}
+.contact-badge a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+.contact-badge a:hover {
+  text-decoration: underline;
+}
 
 /* ── LAYOUT ── */
 .layout { display: flex; height: calc(100vh - 57px); }
@@ -317,6 +334,11 @@ input[type="color"] {
 }
 </style>
 </head>
+
+<div class="contact-badge">
+  Questions? <a href="mailto:idris.demirsoy@usak.edu.tr">idris.demirsoy@usak.edu.tr</a>
+</div>
+  
 <body>
 
 <header>
